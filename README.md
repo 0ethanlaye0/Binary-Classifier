@@ -22,8 +22,6 @@ Binary and multi-class classification models built in PyTorch, demonstrating how
 
 ## Quick demo
 
-## Quick demo
-
 ```python
 import torch
 from torch import nn
