@@ -1,54 +1,87 @@
-# binary-classification
+# pytorch-classification
 
-Binary classification models built in PyTorch, demonstrating how neural networks learn to separate non-linearly separable data.
+Binary and multi-class classification models built in PyTorch, demonstrating how neural networks learn to separate non-linearly separable data.
 
 ## What's implemented
 
 - **`data_exploration.py`** — Data setup and visualization for the circles dataset using `make_circles` from scikit-learn. Converts raw numpy data to PyTorch tensors, splits into train/test sets, and visualizes the two concentric circle classes using matplotlib.
 
-- **`binary_classifier.py`** — A multi-layer perceptron (MLP) trained on the `make_moons` dataset using PyTorch. Uses ReLU activations for non-linearity, BCEWithLogitsLoss for binary cross-entropy, and Adam optimizer. Achieves ~95%+ test accuracy.
+- **`binary_classifier.py`** — MLP trained on `make_moons` using `BCEWithLogitsLoss` and Adam optimizer. Uses ReLU activations for non-linearity. Achieves ~95%+ test accuracy.
+
+- **`multi_classifier.py`** — Multi-class MLP trained on `make_blobs` (5 classes) using `CrossEntropyLoss`. Uses `torch.argmax(torch.softmax(...))` to convert logits to class predictions. Achieves ~95%+ test accuracy.
+
+## Key concepts demonstrated
+
+- Binary classification — `BCEWithLogitsLoss`, `torch.sigmoid` + `torch.round` for predictions
+- Multi-class classification — `CrossEntropyLoss`, `torch.softmax` + `torch.argmax` for predictions
+- Why `CrossEntropyLoss` takes raw logits, not probabilities
+- ReLU non-linearity enabling separation of non-linearly separable data
+- Adam optimizer with adaptive learning rates
+- Train/eval mode and `torch.inference_mode()` for evaluation
+- Accuracy metric alongside loss
+
+## Quick demo
 
 ## Quick demo
 
 ```python
-from torch import nn
 import torch
+from torch import nn
+from sklearn.datasets import make_moons, make_blobs
+from sklearn.model_selection import train_test_split
 
-model = nn.Sequential(
+# --- Binary Classification ---
+X, y = make_moons(n_samples=1000, noise=0.2)
+X = torch.from_numpy(X).type(torch.float)
+y = torch.from_numpy(y).type(torch.float).unsqueeze(1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+model_bin = nn.Sequential(
     nn.Linear(2, 32), nn.ReLU(),
     nn.Linear(32, 32), nn.ReLU(),
     nn.Linear(32, 1)
 )
-
 loss_fn = nn.BCEWithLogitsLoss()
-opt = torch.optim.Adam(model.parameters(), lr=0.001)
+opt = torch.optim.Adam(model_bin.parameters(), lr=0.001)
 
-# Training loop
 for epoch in range(1000):
-    model.train()
-    logits = model(X_train)
-    preds = torch.round(torch.sigmoid(logits))
+    model_bin.train()
+    logits = model_bin(X_train)
     loss = loss_fn(logits, y_train)
     opt.zero_grad()
     loss.backward()
     opt.step()
 
-    # Evaluation loop
-    model.eval()
-    with torch.inference_mode():
-        test_logits = model(X_test)
-        test_preds = torch.round(torch.sigmoid(test_logits))
-        test_loss = loss_fn(test_logits, y_test)
+model_bin.eval()
+with torch.inference_mode():
+    preds = torch.round(torch.sigmoid(model_bin(X_test)))
+
+# --- Multi-class Classification ---
+X, y = make_blobs(n_samples=1200, centers=5, cluster_std=1.8, random_state=99)
+X = torch.from_numpy(X).type(torch.float)
+y = torch.from_numpy(y).type(torch.long)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+model_multi = nn.Sequential(
+    nn.Linear(2, 64), nn.ReLU(),
+    nn.Linear(64, 64), nn.ReLU(),
+    nn.Linear(64, 5)
+)
+loss_fn = nn.CrossEntropyLoss()
+opt = torch.optim.Adam(model_multi.parameters(), lr=0.001)
+
+for epoch in range(3000):
+    model_multi.train()
+    logits = model_multi(X_train)
+    loss = loss_fn(logits, y_train)
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+
+model_multi.eval()
+with torch.inference_mode():
+    preds = torch.argmax(torch.softmax(model_multi(X_test), dim=1), dim=1)
 ```
-
-## Key concepts demonstrated
-
-- Binary classification with `BCEWithLogitsLoss` (combines sigmoid + cross-entropy for numerical stability)
-- Non-linearity via ReLU enabling separation of non-linearly separable data (make_moons)
-- Adam optimizer — with a learning rate for parameters
-- Converting logits to probabilities (`torch.sigmoid`) and class predictions (`torch.round`)
-- Train/eval mode (`model.train()` / `model.eval()`) and `torch.inference_mode()` for evaluation
-- Accuracy metric alongside loss for monitoring training
 
 ## Credit
 
